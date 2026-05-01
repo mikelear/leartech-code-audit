@@ -30,14 +30,16 @@ spec:
           name: ""
           resources: {}
         - name: next-version
-          image: uses:mikelear/leartech-pipeline-catalog/tasks/release/next-version.yaml@main
           resources: {}
         - name: jx-variables
           resources: {}
         - name: build-container-build
           resources: {}
+        - name: promote-changelog
+          resources: {}
+        - name: promote-helm-release
+          resources: {}
         - name: promote-jx-promote
-          image: uses:mikelear/leartech-pipeline-catalog/tasks/release/jx-promote.yaml@main
           resources: {}
   podTemplate:
     tolerations:
