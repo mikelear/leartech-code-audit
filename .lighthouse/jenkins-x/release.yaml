@@ -39,6 +39,12 @@ spec:
           resources: {}
         - name: promote-changelog
           resources: {}
+        - name: promote-helm-release
+          image: uses:mikelear/leartech-pipeline-catalog/tasks/release/helm-release.yaml@main
+          resources: {}
+        - name: promote-jx-promote
+          image: uses:mikelear/leartech-pipeline-catalog/tasks/release/jx-promote.yaml@main
+          resources: {}
   podTemplate:
     tolerations:
     - key: sku
