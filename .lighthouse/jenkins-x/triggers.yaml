@@ -1,0 +1,20 @@
+apiVersion: config.lighthouse.jenkins-x.io/v1alpha1
+kind: TriggerConfig
+spec:
+  presubmits:
+  - name: pr
+    context: "pr"
+    always_run: true
+    optional: false
+    source: "pullrequest.yaml"
+  - name: ai-code-review
+    context: "ai-review"
+    always_run: true
+    optional: true
+    source: "ai-review/pullrequest.yaml"
+  postsubmits:
+  - name: release
+    context: "release"
+    source: "release.yaml"
+    branches:
+    - ^main$

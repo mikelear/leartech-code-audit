@@ -1,0 +1,47 @@
+{{- if .Values.cronJob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: code-standards-audit
+  labels:
+    app.kubernetes.io/name: leartech-code-audit
+    app.kubernetes.io/component: convention-audit
+spec:
+  schedule: {{ .Values.cronJob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronJob.concurrencyPolicy }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronJob.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.cronJob.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: leartech-code-audit
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: audit
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.github.secretName }}
+                  key: password
+            command:
+            - /app/cron-audit.sh
+            args:
+            - --repos
+            - "{{ join "," .Values.cronJob.repos }}"
+            - --org
+            - {{ .Values.github.org | quote }}
+            - --cluster-id
+            - {{ .Values.cluster.id | quote }}
+            - --token
+            - "$(GIT_TOKEN)"
+            resources:
+              {{- toYaml .Values.resources | nindent 14 }}
+{{- end }}
