@@ -1,32 +1,28 @@
 image:
-  repository: ""  # Set by release pipeline ($DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/leartech-code-audit)
-  tag: ""         # Set by release pipeline
+  repository: "us-central1-docker.pkg.dev/product-first/oci/leartech-code-audit"
+  tag: "0.0.2"
   pullPolicy: IfNotPresent
-
 cluster:
   id: "gcp"
-
 github:
   org: "mikelear"
   secretName: tekton-git
-
 cronJob:
   enabled: true
-  schedule: "0 7 * * 1"  # Weekly Monday 7am UTC (after Renovate)
+  schedule: "0 7 * * 1" # Weekly Monday 7am UTC (after Renovate)
   concurrencyPolicy: Forbid
   backoffLimit: 2
   activeDeadlineSeconds: 3600
   repos:
-    - leartech-auth-service
-    - leartech-auth-ui
-    - leartech-ai-classifier
-    - leartech-soc-collector
-    - future-lending-ui
-    - next-generation-lending-website
-    - webcoder-service
-    - leartech-podcast-feed
-    - leartech-dockerfiles
-
+  - leartech-auth-service
+  - leartech-auth-ui
+  - leartech-ai-classifier
+  - leartech-soc-collector
+  - future-lending-ui
+  - next-generation-lending-website
+  - webcoder-service
+  - leartech-podcast-feed
+  - leartech-dockerfiles
 resources:
   requests:
     cpu: 500m
