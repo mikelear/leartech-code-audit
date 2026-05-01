@@ -11,7 +11,7 @@ spec:
       taskSpec:
         metadata: {}
         stepTemplate:
-          image: uses:mikelear/jx3-pipeline-catalog/tasks/docker/pullrequest.yaml@master
+          image: uses:mikelear/jx3-pipeline-catalog/tasks/python/pullrequest.yaml@master
           env:
           - name: HOME
             value: /tekton/home
