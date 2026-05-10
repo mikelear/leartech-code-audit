@@ -1,5 +1,8 @@
 apiVersion: v2
 name: leartech-code-audit
 description: Scheduled code standards audit — runs leartech convention rules against main branches and posts GitHub Issues
-version: 0.1.0
+version: 0.1.1
 type: application
+appVersion: 0.1.1
+sources:
+  - https://github.com/mikelear/leartech-code-audit.git
