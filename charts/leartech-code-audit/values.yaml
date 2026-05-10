@@ -1,55 +1,50 @@
 image:
-  repository: ""  # Set by release pipeline ($DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/leartech-code-audit)
-  tag: ""         # Set by release pipeline
+  repository: "modernburro.azurecr.io/mikelear/leartech-code-audit"
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
-
 cluster:
   id: "gcp"
-
 github:
   org: "mikelear"
   secretName: tekton-git
-
 cronJob:
   enabled: true
-  schedule: "0 7 * * 1"  # Weekly Monday 7am UTC (after Renovate)
+  schedule: "0 7 * * 1" # Weekly Monday 7am UTC (after Renovate)
   concurrencyPolicy: Forbid
   backoffLimit: 2
   activeDeadlineSeconds: 3600
   repos:
-    - leartech-auth-service
-    - leartech-auth-ui
-    - leartech-ai-classifier
-    - leartech-soc-collector
-    - future-lending-ui
-    - next-generation-lending-website
-    - webcoder-service
-    - leartech-podcast-feed
-    - leartech-dockerfiles
-
+  - leartech-auth-service
+  - leartech-auth-ui
+  - leartech-ai-classifier
+  - leartech-soc-collector
+  - future-lending-ui
+  - next-generation-lending-website
+  - webcoder-service
+  - leartech-podcast-feed
+  - leartech-dockerfiles
 aiReview:
   enabled: true
-  schedule: "0 8 * * 1"  # Weekly Monday 8am UTC (after semgrep audit at 7am)
+  schedule: "0 8 * * 1" # Weekly Monday 8am UTC (after semgrep audit at 7am)
   image: ghcr.io/mikelear/ai-review-worker:latest
   threshold: 70
   repos:
-    - leartech-auth-service
-    - leartech-auth-ui
-    - leartech-ai-classifier
-    - leartech-soc-collector
-    - future-lending-ui
-    - next-generation-lending-website
-    - webcoder-service
-    - webcoder-ui
-    - leartech-podcast-feed
-    - leartech-dockerfiles
-    - leartech-arrivals-observer
-    - leartech-gate
-    - leartech-forensics-runner
-    - leartech-pipeline-catalog
+  - leartech-auth-service
+  - leartech-auth-ui
+  - leartech-ai-classifier
+  - leartech-soc-collector
+  - future-lending-ui
+  - next-generation-lending-website
+  - webcoder-service
+  - webcoder-ui
+  - leartech-podcast-feed
+  - leartech-dockerfiles
+  - leartech-arrivals-observer
+  - leartech-gate
+  - leartech-forensics-runner
+  - leartech-pipeline-catalog
   apiKeys:
     secretName: ai-review-api-keys
-
 resources:
   requests:
     cpu: 500m
