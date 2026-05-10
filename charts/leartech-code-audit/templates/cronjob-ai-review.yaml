@@ -1,0 +1,79 @@
+{{- if .Values.aiReview.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-review-audit
+  labels:
+    app.kubernetes.io/name: leartech-code-audit
+    app.kubernetes.io/component: ai-review-audit
+spec:
+  schedule: {{ .Values.aiReview.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: leartech-code-audit
+            app.kubernetes.io/component: ai-review-audit
+        spec:
+          restartPolicy: Never
+          initContainers:
+          - name: copy-scripts
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            command: ["sh", "-c", "cp /app/cron-ai-review.sh /shared/cron-ai-review.sh && chmod +x /shared/cron-ai-review.sh"]
+            volumeMounts:
+            - name: shared
+              mountPath: /shared
+          containers:
+          - name: ai-review
+            image: {{ .Values.aiReview.image | quote }}
+            imagePullPolicy: Always
+            command: ["/shared/cron-ai-review.sh"]
+            args:
+            - --repos
+            - "{{ join "," .Values.aiReview.repos }}"
+            - --org
+            - {{ .Values.github.org | quote }}
+            - --cluster-id
+            - {{ .Values.cluster.id | quote }}
+            - --token
+            - "$(GIT_TOKEN)"
+            - --threshold
+            - {{ .Values.aiReview.threshold | quote }}
+            env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.github.secretName }}
+                  key: password
+            - name: CLAUDE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aiReview.apiKeys.secretName }}
+                  key: CLAUDE_API_KEY
+                  optional: true
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aiReview.apiKeys.secretName }}
+                  key: DEEPSEEK_API_KEY
+                  optional: true
+            volumeMounts:
+            - name: shared
+              mountPath: /shared
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                cpu: "2"
+                memory: 2Gi
+          volumes:
+          - name: shared
+            emptyDir: {}
+{{- end }}
