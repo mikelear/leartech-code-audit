@@ -63,6 +63,18 @@ spec:
                   name: {{ .Values.aiReview.apiKeys.secretName }}
                   key: DEEPSEEK_API_KEY
                   optional: true
+            - name: AZURE_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aiReview.apiKeys.secretName }}
+                  key: AZURE_OPENAI_API_KEY
+                  optional: true
+            - name: AZURE_OPENAI_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aiReview.apiKeys.secretName }}
+                  key: AZURE_OPENAI_ENDPOINT
+                  optional: true
             volumeMounts:
             - name: shared
               mountPath: /shared
