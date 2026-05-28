@@ -145,8 +145,22 @@ for REPO in "${REPO_LIST[@]}"; do
       --output "$WORK_DIR/${REPO}-review-deepseek.json" || echo "  DeepSeek review failed"
   fi
 
+  # Azure OpenAI (4th reviewer — leartech-dockerfiles PR #27)
+  # Endpoint is read from AZURE_OPENAI_ENDPOINT env by review.py; --endpoint
+  # argument is a placeholder to satisfy review.py's required-arg.
+  if [ -n "${AZURE_OPENAI_API_KEY:-}" ] && [ -n "${AZURE_OPENAI_ENDPOINT:-}" ]; then
+    python3 /app/review.py \
+      --provider azure_openai \
+      --endpoint "$AZURE_OPENAI_ENDPOINT" \
+      --model "gpt-4o" \
+      --diff "$DIFF_FILE" \
+      --rag-context "$RAG_CONTEXT" \
+      --standards-dir "$STANDARDS_DIR" \
+      --output "$WORK_DIR/${REPO}-review-azure-openai.json" || echo "  Azure OpenAI review failed"
+  fi
+
   # Collect reviews
-  for f in "$WORK_DIR/${REPO}-review-ollama.json" "$WORK_DIR/${REPO}-review-claude.json" "$WORK_DIR/${REPO}-review-deepseek.json"; do
+  for f in "$WORK_DIR/${REPO}-review-ollama.json" "$WORK_DIR/${REPO}-review-claude.json" "$WORK_DIR/${REPO}-review-deepseek.json" "$WORK_DIR/${REPO}-review-azure-openai.json"; do
     [ -f "$f" ] && REVIEWS="$REVIEWS $f"
   done
   REVIEWS=$(echo $REVIEWS | xargs)
