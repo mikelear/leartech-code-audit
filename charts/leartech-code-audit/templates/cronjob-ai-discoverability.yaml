@@ -1,0 +1,71 @@
+{{- if .Values.aiDiscoverability.enabled }}
+# Scheduled AI-discoverability effectiveness eval: drives Claude (via the MCP
+# connector) against the live leartech-mortgages MCP server, LLM-judges the
+# tool-use quality, and opens a deduped GitHub issue on the website repo when the
+# score drops below threshold or a case regresses. Self-contained ai-eval-worker
+# image (no script injection needed). See hub/shared-rules/ai-discoverable-websites.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-discoverability-eval
+  labels:
+    app.kubernetes.io/name: leartech-code-audit
+    app.kubernetes.io/component: ai-discoverability-eval
+spec:
+  schedule: {{ .Values.aiDiscoverability.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: leartech-code-audit
+            app.kubernetes.io/component: ai-discoverability-eval
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: ai-discoverability
+            image: {{ .Values.aiDiscoverability.image | quote }}
+            imagePullPolicy: Always
+            env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.github.secretName }}
+                  key: password
+            - name: CLAUDE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aiDiscoverability.apiKeys.secretName }}
+                  key: CLAUDE_API_KEY
+                  optional: true
+            - name: GITHUB_ORG
+              value: {{ .Values.github.org | quote }}
+            - name: WEB_REPO
+              value: {{ .Values.aiDiscoverability.webRepo | quote }}
+            - name: MCP_URL
+              value: {{ .Values.aiDiscoverability.mcpUrl | quote }}
+            - name: EVAL_MODEL
+              value: {{ .Values.aiDiscoverability.evalModel | quote }}
+            - name: JUDGE_MODEL
+              value: {{ .Values.aiDiscoverability.judgeModel | quote }}
+            - name: REPORT_ONLY
+              value: {{ .Values.aiDiscoverability.reportOnly | quote }}
+            - name: EVAL_AUTO_REMEDIATE
+              value: {{ .Values.aiDiscoverability.autoRemediate | quote }}
+            - name: AUTOMATED_AGENT_URL
+              value: {{ .Values.aiDiscoverability.automatedAgentUrl | quote }}
+            - name: REMEDIATION_INITIATIVE
+              value: {{ .Values.aiDiscoverability.remediationInitiative | quote }}
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: "1"
+                memory: 1Gi
+{{- end }}
