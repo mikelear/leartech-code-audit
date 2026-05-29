@@ -1,72 +1,66 @@
 image:
-  repository: ""  # Set by release pipeline ($DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/leartech-code-audit)
-  tag: ""         # Set by release pipeline
+  repository: "us-central1-docker.pkg.dev/product-first/oci/leartech-code-audit"
+  tag: "0.3.1"
   pullPolicy: IfNotPresent
-
 cluster:
   id: "gcp"
-
 github:
   org: "mikelear"
   secretName: tekton-git
-
 cronJob:
   enabled: true
-  schedule: "0 7 * * 1"  # Weekly Monday 7am UTC (after Renovate)
+  schedule: "0 7 * * 1" # Weekly Monday 7am UTC (after Renovate)
   concurrencyPolicy: Forbid
   backoffLimit: 2
   activeDeadlineSeconds: 3600
   repos:
-    - leartech-auth-service
-    - leartech-auth-ui
-    - leartech-ai-classifier
-    - leartech-soc-collector
-    - future-lending-ui
-    - next-generation-lending-website
-    - webcoder-service
-    - leartech-podcast-feed
-    - leartech-dockerfiles
-
+  - leartech-auth-service
+  - leartech-auth-ui
+  - leartech-ai-classifier
+  - leartech-soc-collector
+  - future-lending-ui
+  - next-generation-lending-website
+  - webcoder-service
+  - leartech-podcast-feed
+  - leartech-dockerfiles
 aiReview:
   enabled: true
-  schedule: "0 8 * * 1"  # Weekly Monday 8am UTC (after semgrep audit at 7am)
+  schedule: "0 8 * * 1" # Weekly Monday 8am UTC (after semgrep audit at 7am)
   image: ghcr.io/mikelear/ai-review-worker:latest
   threshold: 70
   repos:
-    - leartech-auth-service
-    - leartech-auth-ui
-    - leartech-ai-classifier
-    - leartech-soc-collector
-    - future-lending-ui
-    - next-generation-lending-website
-    - webcoder-service
-    - webcoder-ui
-    - leartech-podcast-feed
-    - leartech-dockerfiles
-    - leartech-arrivals-observer
-    - leartech-gate
-    - leartech-forensics-runner
-    - leartech-pipeline-catalog
+  - leartech-auth-service
+  - leartech-auth-ui
+  - leartech-ai-classifier
+  - leartech-soc-collector
+  - future-lending-ui
+  - next-generation-lending-website
+  - webcoder-service
+  - webcoder-ui
+  - leartech-podcast-feed
+  - leartech-dockerfiles
+  - leartech-arrivals-observer
+  - leartech-gate
+  - leartech-forensics-runner
+  - leartech-pipeline-catalog
   apiKeys:
     secretName: ai-review-api-keys
-
 aiDiscoverability:
   enabled: true
-  schedule: "0 9 * * 1"  # Weekly Monday 9am UTC (after semgrep 7am + ai-review 8am)
+  schedule: "0 9 * * 1" # Weekly Monday 9am UTC (after semgrep 7am + ai-review 8am)
   image: ghcr.io/mikelear/ai-eval-worker:latest
   mcpUrl: "https://api.mortgagesourcing.com/mcp"
-  webRepo: leartech-mortgagesourcing-web   # where the eval issue is filed
+  webRepo: leartech-mortgagesourcing-web # where the eval issue is filed
   evalModel: "claude-opus-4-7"
   judgeModel: "claude-opus-4-7"
   reportOnly: false
   # Default OFF — file an issue only; the agent proposes, a human merges. Set true
   # (plus the two fields below) to fire a HELD remediation initiative on regression.
   autoRemediate: false
-  automatedAgentUrl: ""          # e.g. http://leartech-automated-agent.jx-staging.svc.cluster.local:8080
-  remediationInitiative: ""      # e.g. mortgagesourcing-web-mcp-setup
+  automatedAgentUrl: "" # e.g. http://leartech-automated-agent.jx-staging.svc.cluster.local:8080
+  remediationInitiative: "" # e.g. mortgagesourcing-web-mcp-setup
   apiKeys:
     secretName: ai-review-api-keys
-
 resources:
   requests:
     cpu: 500m
