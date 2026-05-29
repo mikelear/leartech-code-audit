@@ -50,6 +50,23 @@ aiReview:
   apiKeys:
     secretName: ai-review-api-keys
 
+aiDiscoverability:
+  enabled: true
+  schedule: "0 9 * * 1"  # Weekly Monday 9am UTC (after semgrep 7am + ai-review 8am)
+  image: ghcr.io/mikelear/ai-eval-worker:latest
+  mcpUrl: "https://api.mortgagesourcing.com/mcp"
+  webRepo: leartech-mortgagesourcing-web   # where the eval issue is filed
+  evalModel: "claude-opus-4-7"
+  judgeModel: "claude-opus-4-7"
+  reportOnly: false
+  # Default OFF — file an issue only; the agent proposes, a human merges. Set true
+  # (plus the two fields below) to fire a HELD remediation initiative on regression.
+  autoRemediate: false
+  automatedAgentUrl: ""          # e.g. http://leartech-automated-agent.jx-staging.svc.cluster.local:8080
+  remediationInitiative: ""      # e.g. mortgagesourcing-web-mcp-setup
+  apiKeys:
+    secretName: ai-review-api-keys
+
 resources:
   requests:
     cpu: 500m
