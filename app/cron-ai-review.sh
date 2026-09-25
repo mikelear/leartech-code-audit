@@ -29,10 +29,14 @@ AUDIT_LABEL="audit-ai-review"
 TOTAL_ISSUES=0
 
 # Endpoints
-OLLAMA_ENDPOINT="${OLLAMA_ENDPOINT:-http://ollama.ai-inference.svc.cluster.local:11434}"
 CHROMADB_ENDPOINT="${CHROMADB_ENDPOINT:-http://ai-inference-resources-chromadb.ai-inference.svc.cluster.local:8000}"
 CLASSIFIER_ENDPOINT="${CLASSIFIER_ENDPOINT:-http://leartech-ai-classifier.jx-staging.svc.cluster.local:8080}"
-OLLAMA_MODEL="${OLLAMA_MODEL:-qwen2.5-coder:14b}"
+
+# OLLAMA_ENDPOINT and OLLAMA_MODEL are GONE. The self-hosted reviewer is now
+# reached through the gateway like every other one — whether it runs at all is
+# OLLAMA_ENABLED in ai-review-cluster-config, which the reviewer reads. Keeping
+# a default here would be a second place that decides which model ollama serves,
+# and it would silently disagree with the gateway catalogue.
 
 echo "=== AI Review Audit [${CLUSTER_ID}] ==="
 echo "Repos: $(echo "$REPOS" | tr ',' '\n' | wc -l | tr -d ' ')"
@@ -106,82 +110,41 @@ for REPO in "${REPO_LIST[@]}"; do
     --output "$RAG_FILE" 2>/dev/null || true
   [ -s "$RAG_FILE" ] && RAG_CONTEXT="$RAG_FILE"
 
-  # Run reviews (each tolerant of failures)
-  REVIEWS=""
+  # ── Reviews + aggregation: ONE Go entrypoint, all via the gateway ──────────
+  #
+  # WAS: four review.py invocations (ollama, claude, deepseek, azure_openai),
+  # each with a hardcoded supplier endpoint including
+  # https://api.anthropic.com/v1/messages, then aggregate.py over whatever
+  # landed. That made this the LAST reviewer in the estate calling a supplier
+  # directly: no metering, no budget cap, no model allowlist, no rate limit,
+  # and invisible to every dashboard — across 13 repos every Monday.
+  #
+  # NOW: build_prompt.py + `reviewer`, exactly as the PR path does
+  # (leartech-pipeline-catalog tasks/ai-review/pullrequest.yaml). Which
+  # reviewers run, the aggregation strategy and the judge model come from
+  # ai-review-cluster-config, so this cron and the PR review stop being able
+  # to disagree about what a review IS — they were separately configured and
+  # separately drifting.
+  #
+  # `reviewer` writes the same post_review.py-compatible aggregate JSON that
+  # aggregate.py did, so everything downstream of here is unchanged.
+  python3 /app/build_prompt.py \
+    --diff "$DIFF_FILE" \
+    --standards-dir "$STANDARDS_DIR" \
+    --out-dir "$WORK_DIR/${REPO}-prompt" || echo "  build_prompt failed (reviewer falls back to a generic prompt)"
 
-  # Ollama
-  if python3 -c "import httpx; httpx.get('$OLLAMA_ENDPOINT/api/tags', timeout=5)" 2>/dev/null; then
-    python3 /app/review.py \
-      --provider ollama \
-      --endpoint "$OLLAMA_ENDPOINT" \
-      --model "$OLLAMA_MODEL" \
-      --diff "$DIFF_FILE" \
-      --rag-context "$RAG_CONTEXT" \
-      --standards-dir "$STANDARDS_DIR" \
-      --output "$WORK_DIR/${REPO}-review-ollama.json" || echo "  Ollama review failed"
-  fi
-
-  # Claude
-  if [ -n "${CLAUDE_API_KEY:-}" ]; then
-    python3 /app/review.py \
-      --provider claude \
-      --endpoint "https://api.anthropic.com/v1/messages" \
-      --model "claude-sonnet-4-20250514" \
-      --diff "$DIFF_FILE" \
-      --rag-context "$RAG_CONTEXT" \
-      --standards-dir "$STANDARDS_DIR" \
-      --output "$WORK_DIR/${REPO}-review-claude.json" || echo "  Claude review failed"
-  fi
-
-  # DeepSeek
-  if [ -n "${DEEPSEEK_API_KEY:-}" ]; then
-    python3 /app/review.py \
-      --provider deepseek \
-      --endpoint "https://api.deepseek.com/v1/chat/completions" \
-      --model "deepseek-chat" \
-      --diff "$DIFF_FILE" \
-      --rag-context "$RAG_CONTEXT" \
-      --standards-dir "$STANDARDS_DIR" \
-      --output "$WORK_DIR/${REPO}-review-deepseek.json" || echo "  DeepSeek review failed"
-  fi
-
-  # Azure OpenAI (4th reviewer — leartech-dockerfiles PR #27)
-  # Endpoint is read from AZURE_OPENAI_ENDPOINT env by review.py; --endpoint
-  # argument is a placeholder to satisfy review.py's required-arg.
-  if [ -n "${AZURE_OPENAI_API_KEY:-}" ] && [ -n "${AZURE_OPENAI_ENDPOINT:-}" ]; then
-    python3 /app/review.py \
-      --provider azure_openai \
-      --endpoint "$AZURE_OPENAI_ENDPOINT" \
-      --model "gpt-4o" \
-      --diff "$DIFF_FILE" \
-      --rag-context "$RAG_CONTEXT" \
-      --standards-dir "$STANDARDS_DIR" \
-      --output "$WORK_DIR/${REPO}-review-azure-openai.json" || echo "  Azure OpenAI review failed"
-  fi
-
-  # Collect reviews
-  for f in "$WORK_DIR/${REPO}-review-ollama.json" "$WORK_DIR/${REPO}-review-claude.json" "$WORK_DIR/${REPO}-review-deepseek.json" "$WORK_DIR/${REPO}-review-azure-openai.json"; do
-    [ -f "$f" ] && REVIEWS="$REVIEWS $f"
-  done
-  REVIEWS=$(echo $REVIEWS | xargs)
-  REVIEW_COUNT=$(echo $REVIEWS | wc -w | tr -d ' ')
-
-  if [ "$REVIEW_COUNT" -eq 0 ]; then
-    echo "  No reviews available, skipping"
+  if ! reviewer \
+    --diff "$DIFF_FILE" \
+    --system-prompt "$WORK_DIR/${REPO}-prompt/system-prompt.txt" \
+    --standards "$WORK_DIR/${REPO}-prompt/standards.txt" \
+    --languages "$WORK_DIR/${REPO}-prompt/languages.json" \
+    --rag-context "$RAG_CONTEXT" \
+    --output "$WORK_DIR/${REPO}-aggregate.json"; then
+    echo "  Review failed for $REPO (gateway unreachable, or no reviewer answered)"
     rm -rf "$REPO_DIR"
     continue
   fi
 
-  # Aggregate
-  REVIEW_LIST=$(echo $REVIEWS | tr ' ' ',')
-  python3 /app/aggregate.py \
-    --reviews "$REVIEW_LIST" \
-    --threshold "$REVIEW_COUNT" \
-    --output "$WORK_DIR/${REPO}-aggregate.json" || {
-    echo "  Aggregate failed"
-    rm -rf "$REPO_DIR"
-    continue
-  }
 
   # Classifier advisory
   CLASSIFIER_VERDICT="N/A"

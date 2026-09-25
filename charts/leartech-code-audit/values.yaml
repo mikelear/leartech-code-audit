@@ -29,6 +29,13 @@ cronJob:
 
 aiReview:
   enabled: true
+  # The gateway this job reviews through. A virtual key of its OWN rather than
+  # a shared one: spend is per key, so a weekly 13-repo audit sharing a budget
+  # with the per-PR reviewer would exhaust it for both and the cap would fire
+  # on whichever ran second.
+  gateway:
+    url: http://leartech-ai-gateway.ai-gateway.svc.cluster.local:8080
+    secretName: code-audit-gateway-key
   schedule: "0 8 * * 1"  # Weekly Monday 8am UTC (after semgrep audit at 7am)
   image: ghcr.io/mikelear/ai-review-worker:latest
   threshold: 70
